@@ -60,11 +60,14 @@ func Login(c *fiber.Ctx) error {
 }
 
 // Register handler
+// handlers/auth.go
+
+// Register handler
 func Register(c *fiber.Ctx) error {
-	var user models.User
+	var req models.RegisterRequest // <-- UBAH INI (1)
 
 	// Parse request body
-	if err := c.BodyParser(&user); err != nil {
+	if err := c.BodyParser(&req); err != nil { // <-- UBAH INI (2)
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"error":   true,
 			"message": "Invalid request body",
@@ -72,7 +75,8 @@ func Register(c *fiber.Ctx) error {
 	}
 
 	// Validate required fields
-	if user.Username == "" || user.Password == "" || user.Role == "" || user.NamaLengkap == "" {
+	// Validasi dari 'req', bukan 'user'
+	if req.Username == "" || req.Password == "" || req.Role == "" || req.NamaLengkap == "" { // <-- UBAH INI (3)
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"error":   true,
 			"message": "Missing required fields",
@@ -80,14 +84,23 @@ func Register(c *fiber.Ctx) error {
 	}
 
 	// Hash password
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(user.Password), bcrypt.DefaultCost)
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost) // <-- UBAH INI (4)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error":   true,
 			"message": "Failed to hash password",
 		})
 	}
-	user.Password = string(hashedPassword)
+
+	// Buat models.User dari req
+	user := models.User{
+		Username:     req.Username,
+		Password:     string(hashedPassword), // <-- Gunakan password yang sudah di-hash
+		Role:         req.Role,
+		NamaLengkap:  req.NamaLengkap,
+		NoHP:         req.NoHP,
+		WilayahTugas: req.WilayahTugas,
+	} // <-- TAMBAHKAN BLOK INI (5)
 
 	// Create user
 	if err := database.DB.Create(&user).Error; err != nil {

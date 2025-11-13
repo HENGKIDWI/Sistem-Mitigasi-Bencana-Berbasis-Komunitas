@@ -2,6 +2,7 @@
 package handlers
 
 import (
+	"bufio"
 	"fmt"
 	"strconv"
 	"sync"
@@ -215,7 +216,9 @@ func BroadcastStream(c *fiber.Ctx) error {
 	// Send initial connection message
 	c.Write([]byte("event: connected\n"))
 	c.Write([]byte(fmt.Sprintf("data: {\"clientId\": \"%s\", \"message\": \"Connected to broadcast stream\"}\n\n", clientID)))
-	c.Context().SetBodyStreamWriter(func(w *fiber.Writer) {
+
+	// Gunakan *bufio.Writer
+	c.Context().SetBodyStreamWriter(func(w *bufio.Writer) {
 		// Keep connection alive
 		ticker := time.NewTicker(30 * time.Second)
 		defer ticker.Stop()
@@ -226,13 +229,13 @@ func BroadcastStream(c *fiber.Ctx) error {
 				// Send message to client
 				fmt.Fprintf(w, "event: alert\n")
 				fmt.Fprintf(w, "data: %s\n\n", message)
-				w.Flush()
+				w.Flush() // Flush diperlukan untuk bufio.Writer
 
 			case <-ticker.C:
 				// Send heartbeat
 				fmt.Fprintf(w, "event: heartbeat\n")
 				fmt.Fprintf(w, "data: {\"timestamp\": \"%s\"}\n\n", time.Now().Format(time.RFC3339))
-				w.Flush()
+				w.Flush() // Flush diperlukan untuk bufio.Writer
 
 			case <-c.Context().Done():
 				return

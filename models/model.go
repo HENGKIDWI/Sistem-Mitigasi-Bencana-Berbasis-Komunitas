@@ -76,7 +76,7 @@ type SystemLog struct {
 	UserID    uint      `gorm:"not null" json:"user_id"`
 	User      User      `gorm:"foreignKey:UserID" json:"user,omitempty"`
 	Aktivitas string    `gorm:"not null" json:"aktivitas"`
-	Timestamp time.Time `gorm:"not null;default:CURRENT_TIMESTAMP" json:"timestamp"`
+	Timestamp time.Time `gorm:"not null;autoCreateTime" json:"timestamp"`
 }
 
 // MasterKecamatan model
@@ -153,6 +153,15 @@ type CreateBencanaRequest struct {
 	JenisBencana string `json:"jenis_bencana" validate:"required"`
 	Level        string `json:"level" validate:"required"`
 	Deskripsi    string `json:"deskripsi"`
+}
+
+type RegisterRequest struct {
+	Username     string `json:"username"`
+	Password     string `json:"password"`
+	Role         string `json:"role"`
+	NamaLengkap  string `json:"nama_lengkap"`
+	NoHP         string `json:"no_hp"`
+	WilayahTugas string `json:"wilayah_tugas"`
 }
 
 // DTO for Broadcast Notification

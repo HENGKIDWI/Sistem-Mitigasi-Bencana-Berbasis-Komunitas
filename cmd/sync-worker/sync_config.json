@@ -1,0 +1,20 @@
+{
+  "sync_interval_minutes": 1,
+  "kecamatan_apis": [
+    {
+      "kecamatan_id": 1,
+      "nama": "Kecamatan Bangkalan",
+      "api_url": "http://localhost:3001/api/v1"
+    },
+    {
+      "kecamatan_id": 2,
+      "nama": "Kecamatan Socah",
+      "api_url": "http://localhost:3002/api/v1"
+    },
+    {
+      "kecamatan_id": 3,
+      "nama": "Kecamatan Burneh",
+      "api_url": "http://localhost:3003/api/v1"
+    }
+  ]
+}

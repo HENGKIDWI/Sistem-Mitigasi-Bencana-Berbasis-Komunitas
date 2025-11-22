@@ -62,22 +62,39 @@ func CloseDB() {
 	log.Println("Database connection closed")
 }
 
-func AutoMigrate() {
+// -----------------------------------------------------------------
+// FUNGSI MIGRASI KHUSUS UNTUK API KECAMATAN
+// -----------------------------------------------------------------
+func AutoMigrateKecamatan() {
 	err := DB.AutoMigrate(
-		&models.User{},
-		&models.WargaRentan{},
-		&models.KejadianBencana{},
-		&models.LogEvakuasi{},
-		&models.SystemLog{},
-		&models.MasterKecamatan{},
-		&models.AdminKota{},
-		&models.RekapDataWilayah{},
-		&models.MonitoringBencanaKota{},
+		&models.User{},            // Tabel User (RT, RW, Relawan)
+		&models.WargaRentan{},     // Tabel Warga
+		&models.KejadianBencana{}, // Tabel Bencana
+		&models.LogEvakuasi{},     // Tabel Log Evakuasi
+		&models.SystemLog{},       // Log sistem lokal
 	)
 
 	if err != nil {
-		log.Fatal("Failed to auto migrate:", err)
+		log.Fatal("Gagal migrasi database Kecamatan:", err)
 	}
 
-	log.Println("✅ Auto migration completed")
+	log.Println("✅ Migrasi database Kecamatan berhasil")
+}
+
+// -----------------------------------------------------------------
+// FUNGSI MIGRASI KHUSUS UNTUK API KOTA (AGREGASI)
+// -----------------------------------------------------------------
+func AutoMigrateKota() {
+	err := DB.AutoMigrate(
+		&models.MasterKecamatan{},       // Tabel Master Kecamatan
+		&models.AdminKota{},             // User untuk Pemkot/BPBD
+		&models.RekapDataWilayah{},      // Tabel Agregasi Warga
+		&models.MonitoringBencanaKota{}, // Tabel Agregasi Bencana
+	)
+
+	if err != nil {
+		log.Fatal("Gagal migrasi database Kota:", err)
+	}
+
+	log.Println("✅ Migrasi database Kota berhasil")
 }

@@ -123,8 +123,10 @@ func CreateBencana(c *fiber.Ctx) error {
 	// Trigger notification to relevant parties
 	go triggerBencanaNotification(bencana)
 
-	// Create monitoring entry
-	go createMonitoringBencana(bencana)
+	// -----------------------------------------------------------------
+	// DIHAPUS: go createMonitoringBencana(bencana)
+	// Tugas ini sekarang dilakukan oleh Sync Worker
+	// -----------------------------------------------------------------
 
 	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
 		"error":   false,
@@ -351,16 +353,15 @@ func GetLogEvakuasi(c *fiber.Ctx) error {
 func triggerBencanaNotification(bencana models.KejadianBencana) {
 	// Implementation for sending notifications via WhatsApp or other channels
 	// This would integrate with notification service
+	// (TETAP DI SINI - Logika notifikasi lokal)
 }
 
-func createMonitoringBencana(bencana models.KejadianBencana) {
-	// Create monitoring entry at city level
-	// This would sync data to MonitoringBencanaKota table
-}
+// DIHAPUS - Fungsinya dipindahkan ke Sync Worker
+// func createMonitoringBencana(bencana models.KejadianBencana) {
+// }
 
 func extractRT(wilayahTugas string) string {
-	// Parse RT from wilayah_tugas string
+	// TODO: Implement proper parsing logic
 	// Example: "RT 001/RW 001" -> "001"
-	// Implement proper parsing logic
 	return ""
 }

@@ -14,12 +14,15 @@ import (
 )
 
 // SSE Broadcast management
+// (Ini mungkin TIDAK akan digunakan oleh API Kota,
+// tapi kita biarkan saja. API Kecamatan yang akan banyak menggunakan ini)
 var (
 	broadcastClients = make(map[string]chan string)
 	clientsMutex     sync.RWMutex
 )
 
 // GetMonitoringKecamatan returns monitoring data for a kecamatan
+// FUNGSI INI HANYA DIJALANKAN DI API KOTA, MEMBACA DB KOTA
 func GetMonitoringKecamatan(c *fiber.Ctx) error {
 	kecamatanID, err := strconv.Atoi(c.Params("id"))
 	if err != nil {
@@ -29,62 +32,60 @@ func GetMonitoringKecamatan(c *fiber.Ctx) error {
 		})
 	}
 
-	// Get active bencana in kecamatan
+	// REFAKTOR: Ambil bencana dari tabel agregasi
 	var bencana []models.MonitoringBencanaKota
 	database.DB.Where("kecamatan_id = ?", kecamatanID).
 		Preload("Kecamatan").
 		Order("waktu_laporan DESC").
 		Find(&bencana)
 
-	// Get rekap data wilayah
+	// REFAKTOR: Ambil rekap dari tabel agregasi
 	var rekap models.RekapDataWilayah
 	database.DB.Where("kecamatan_id = ?", kecamatanID).
 		Preload("Kecamatan").
 		First(&rekap)
 
-	// Count active evacuations
-	var activeEvacuations int64
-	database.DB.Model(&models.LogEvakuasi{}).
-		Joins("JOIN kejadian_bencana ON kejadian_bencana.id = log_evakuasi.bencana_id").
-		Where("kejadian_bencana.status = ?", "Aktif").
-		Where("log_evakuasi.status_terkini NOT IN ?", []string{"Di Titik Kumpul"}).
-		Count(&activeEvacuations)
+	// REFAKTOR: Query ke LogEvakuasi DIHAPUS
+	// Data ini harusnya sudah ada di tabel rekap/monitoring jika diperlukan,
+	// atau butuh endpoint summary baru di API Kecamatan
 
 	return c.JSON(fiber.Map{
 		"error": false,
 		"data": fiber.Map{
-			"bencana":            bencana,
-			"rekap":              rekap,
-			"active_evacuations": activeEvacuations,
+			// Hanya mengembalikan data dari tabel agregasi
+			"bencana_monitoring": bencana,
+			"rekap_wilayah":      rekap,
 		},
 	})
 }
 
 // GetMonitoringKota returns monitoring data for entire city
+// FUNGSI INI HANYA DIJALANKAN DI API KOTA, MEMBACA DB KOTA
 func GetMonitoringKota(c *fiber.Ctx) error {
-	// Get all monitoring data grouped by kecamatan
+	// BENAR: Ambil data monitoring dari tabel agregasi
 	var monitoring []models.MonitoringBencanaKota
 	database.DB.Preload("Kecamatan").
 		Order("waktu_laporan DESC").
 		Limit(50).
 		Find(&monitoring)
 
-	// Get rekap data for all kecamatan
+	// BENAR: Ambil rekap dari tabel agregasi
 	var rekapData []models.RekapDataWilayah
 	database.DB.Preload("Kecamatan").Find(&rekapData)
 
-	// Calculate total statistics
+	// BENAR: Hitung total statistik dari tabel rekap
 	var totalWarga, totalKerentanan int
 	for _, rekap := range rekapData {
 		totalWarga += rekap.TotalWarga
 		totalKerentanan += rekap.TotalKerentanan
 	}
 
-	// Get active bencana count
+	// REFAKTOR: Hitung bencana aktif dari tabel MONITORING, bukan KejadianBencana
 	var activeBencanaCount int64
-	database.DB.Model(&models.KejadianBencana{}).
-		Where("status = ?", "Aktif").
-		Count(&activeBencanaCount)
+	// Asumsi: Sync worker sudah mengisi 'total_bencana' dengan benar
+	database.DB.Model(&models.MonitoringBencanaKota{}).
+		Select("SUM(total_bencana)").
+		Scan(&activeBencanaCount)
 
 	return c.JSON(fiber.Map{
 		"error": false,
@@ -93,12 +94,13 @@ func GetMonitoringKota(c *fiber.Ctx) error {
 			"rekap_kecamatan":      rekapData,
 			"total_warga":          totalWarga,
 			"total_kerentanan":     totalKerentanan,
-			"active_bencana_count": activeBencanaCount,
+			"active_bencana_count": activeBencanaCount, // Data sudah benar dari DB Kota
 		},
 	})
 }
 
 // GetRekapWilayah returns rekap data for a specific kecamatan
+// FUNGSI INI HANYA DIJALANKAN DI API KOTA, MEMBACA DB KOTA
 func GetRekapWilayah(c *fiber.Ctx) error {
 	kecamatanID, err := strconv.Atoi(c.Params("kecamatan_id"))
 	if err != nil {
@@ -108,6 +110,7 @@ func GetRekapWilayah(c *fiber.Ctx) error {
 		})
 	}
 
+	// BENAR: Ambil rekap dari tabel agregasi
 	var rekap models.RekapDataWilayah
 	if err := database.DB.Where("kecamatan_id = ?", kecamatanID).
 		Preload("Kecamatan").
@@ -118,27 +121,22 @@ func GetRekapWilayah(c *fiber.Ctx) error {
 		})
 	}
 
-	// Get detailed breakdown by kategori
-	var breakdown []struct {
-		KategoriRentan string `json:"kategori_rentan"`
-		Total          int    `json:"total"`
-	}
-
-	database.DB.Model(&models.WargaRentan{}).
-		Select("kategori_rentan, COUNT(*) as total").
-		Group("kategori_rentan").
-		Scan(&breakdown)
+	// REFAKTOR: Query breakdown DIHAPUS.
+	// Query ini tidak bisa dijalankan di DB Kota karena tidak ada tabel WargaRentan.
+	// Data breakdown ini harusnya disiapkan oleh Sync Worker
+	// dan disimpan di tabel RekapDataWilayah.
 
 	return c.JSON(fiber.Map{
 		"error": false,
 		"data": fiber.Map{
-			"rekap":     rekap,
-			"breakdown": breakdown,
+			"rekap": rekap,
+			// "breakdown" DIHAPUS
 		},
 	})
 }
 
 // SendDaruratNotification sends emergency notification
+// FUNGSI INI HANYA DIJALANKAN DI API KECAMATAN
 func SendDaruratNotification(c *fiber.Ctx) error {
 	var req models.BroadcastRequest
 
@@ -160,11 +158,11 @@ func SendDaruratNotification(c *fiber.Ctx) error {
 
 	// Format broadcast message
 	message := fmt.Sprintf(
-		"🚨 PERINGATAN DARURAT 🚨\n\nJenis: %s\nLevel: %s\nPesan: %s\nWaktu: %s",
+		"{\"jenis\": \"%s\", \"level\": \"%s\", \"pesan\": \"%s\", \"waktu\": \"%s\"}",
 		bencana.JenisBencana,
 		bencana.Level,
 		req.Message,
-		time.Now().Format("02/01/2006 15:04"),
+		time.Now().Format(time.RFC3339),
 	)
 
 	// Broadcast to all connected SSE clients
@@ -188,6 +186,7 @@ func SendDaruratNotification(c *fiber.Ctx) error {
 }
 
 // BroadcastStream handles SSE connections
+// FUNGSI INI HANYA DIJALANKAN DI API KECAMATAN
 func BroadcastStream(c *fiber.Ctx) error {
 	c.Set("Content-Type", "text/event-stream")
 	c.Set("Cache-Control", "no-cache")

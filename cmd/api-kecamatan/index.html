@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-M-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard Uji API Kecamatan</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100">
+
+    <div id="login-section" class="container mx-auto max-w-lg p-8 mt-10">
+        <div class="bg-white p-6 rounded-lg shadow-lg">
+            <h1 class="text-2xl font-bold mb-4">Login atau Register</h1>
+            
+            <form id="login-form" class="mb-4">
+                <h2 class="text-lg font-semibold mb-2">Login</h2>
+                <input id="login-username" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 mb-2" type="text" placeholder="Username" value="rt01">
+                <input id="login-password" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 mb-2" type="password" placeholder="Password" value="password123">
+                <button class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded" type="submit">Login</button>
+            </form>
+            
+            <hr class="my-4">
+
+            <form id="register-form">
+                <h2 class="text-lg font-semibold mb-2">Register (RT/Relawan)</h2>
+                <input id="reg-username" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 mb-2" type="text" placeholder="Username">
+                <input id="reg-password" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 mb-2" type="password" placeholder="Password">
+                <input id="reg-nama" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 mb-2" type="text" placeholder="Nama Lengkap">
+                <select id="reg-role" class="shadow border rounded w-full py-2 px-3 text-gray-700 mb-2">
+                    <option value="RT">RT</option>
+                    <option value="Relawan">Relawan</option>
+                </select>
+                <button class="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded" type="submit">Register</button>
+            </form>
+        </div>
+    </div>
+
+    <div id="dashboard-section" class="container mx-auto p-4 hidden">
+        <div class="flex justify-between items-center bg-white p-4 rounded-lg shadow-md mb-4">
+            <h1 class="text-2xl font-bold">Dashboard Uji API Kecamatan</h1>
+            <button id="logout-button" class="bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded">Logout</button>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            
+            <div class="bg-white p-4 rounded-lg shadow-md">
+                <h2 class="text-xl font-semibold mb-2">Warga Rentan</h2>
+                <form id="warga-form" class="mb-4">
+                    <input id="warga-nik" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 mb-2" type="text" placeholder="NIK">
+                    <input id="warga-nama" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 mb-2" type="text" placeholder="Nama">
+                    <select id="warga-kategori" class="shadow border rounded w-full py-2 px-3 text-gray-700 mb-2">
+                        <option value="Lansia">Lansia</option>
+                        <option value="Disabilitas">Disabilitas</option>
+                        <option value="Anak-anak">Anak-anak</option>
+                        <option value="Ibu Hamil">Ibu Hamil</option>
+                        <option value="Non-Rentan">Non-Rentan</option>
+                    </select>
+                    <button class="bg-blue-500 text-white py-2 px-4 rounded w-full" type="submit">Tambah Warga</button>
+                </form>
+                <button id="btn-fetch-warga" class="bg-gray-200 py-2 px-4 rounded w-full mb-2">Refresh Daftar Warga</button>
+                <pre id="warga-list-output" class="bg-gray-100 p-2 rounded h-64 overflow-auto text-xs">Tekan 'Refresh' untuk melihat data...</pre>
+            </div>
+
+            <div class="bg-white p-4 rounded-lg shadow-md">
+                <h2 class="text-xl font-semibold mb-2">Kejadian Bencana</h2>
+                <form id="bencana-form" class="mb-4">
+                    <input id="bencana-jenis" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 mb-2" type="text" placeholder="Jenis Bencana (cth: Banjir)">
+                    <select id="bencana-level" class="shadow border rounded w-full py-2 px-3 text-gray-700 mb-2">
+                        <option value="Lokal_RT">Lokal RT</option>
+                        <option value="Kecamatan">Kecamatan</option>
+                    </select>
+                    <textarea id="bencana-deskripsi" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 mb-2" placeholder="Deskripsi..."></textarea>
+                    <button class="bg-red-500 text-white py-2 px-4 rounded w-full" type="submit">Lapor Bencana</button>
+                </form>
+                <button id="btn-fetch-bencana" class="bg-gray-200 py-2 px-4 rounded w-full mb-2">Refresh Bencana Aktif</button>
+                <pre id="bencana-list-output" class="bg-gray-100 p-2 rounded h-64 overflow-auto text-xs">Tekan 'Refresh' untuk melihat data...</pre>
+            </div>
+
+            <div class="bg-white p-4 rounded-lg shadow-md">
+                <h2 class="text-xl font-semibold mb-2">Notifikasi Real-time (SSE)</h2>
+                <button id="btn-connect-sse" class="bg-yellow-500 text-white py-2 px-4 rounded w-full mb-2">Mulai Mendengarkan</button>
+                <ul id="sse-messages" class="bg-gray-800 text-green-400 p-2 rounded h-96 overflow-auto text-xs font-mono">
+                    <li>Menunggu koneksi...</li>
+                </ul>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        // --- KONFIGURASI ---
+        const API_URL = 'http://localhost:3001/api/v1'; // Sesuaikan port jika perlu
+        let token = localStorage.getItem('token');
+        let eventSource = null;
+
+        // --- Elemen DOM ---
+        const loginSection = document.getElementById('login-section');
+        const dashboardSection = document.getElementById('dashboard-section');
+        const loginForm = document.getElementById('login-form');
+        const registerForm = document.getElementById('register-form');
+        const logoutButton = document.getElementById('logout-button');
+        
+        const wargaForm = document.getElementById('warga-form');
+        const btnFetchWarga = document.getElementById('btn-fetch-warga');
+        const wargaListOutput = document.getElementById('warga-list-output');
+
+        const bencanaForm = document.getElementById('bencana-form');
+        const btnFetchBencana = document.getElementById('btn-fetch-bencana');
+        const bencanaListOutput = document.getElementById('bencana-list-output');
+
+        const btnConnectSSE = document.getElementById('btn-connect-sse');
+        const sseMessages = document.getElementById('sse-messages');
+
+        // --- Fungsi Helper ---
+        function checkLoginState() {
+            if (token) {
+                loginSection.classList.add('hidden');
+                dashboardSection.classList.remove('hidden');
+            } else {
+                loginSection.classList.remove('hidden');
+                dashboardSection.classList.add('hidden');
+            }
+        }
+
+        async function apiCall(endpoint, method = 'GET', body = null) {
+            const headers = {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            };
+            
+            const options = { method, headers };
+            if (body) {
+                options.body = JSON.stringify(body);
+            }
+
+            try {
+                const response = await fetch(`${API_URL}${endpoint}`, options);
+                if (!response.ok) {
+                    const errData = await response.json();
+                    throw new Error(errData.message || `Error ${response.status}`);
+                }
+                return await response.json();
+            } catch (error) {
+                alert(`API Error: ${error.message}`);
+                return null;
+            }
+        }
+
+        function displayJSON(element, data) {
+            element.textContent = JSON.stringify(data, null, 2);
+        }
+
+        // --- Event Handlers ---
+
+        // Login
+        loginForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const username = document.getElementById('login-username').value;
+            const password = document.getElementById('login-password').value;
+            
+            try {
+                const response = await fetch(`${API_URL}/auth/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password })
+                });
+                const data = await response.json();
+                if (data.error) throw new Error(data.message);
+                
+                token = data.data.token;
+                localStorage.setItem('token', token);
+                checkLoginState();
+            } catch (error) {
+                alert(`Login Gagal: ${error.message}`);
+            }
+        });
+
+        // Register
+        registerForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const body = {
+                username: document.getElementById('reg-username').value,
+                password: document.getElementById('reg-password').value,
+                nama_lengkap: document.getElementById('reg-nama').value,
+                role: document.getElementById('reg-role').value,
+            };
+
+            try {
+                const response = await fetch(`${API_URL}/auth/register`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body)
+                });
+                const data = await response.json();
+                if (data.error) throw new Error(data.message);
+                alert('Registrasi berhasil! Silakan login.');
+                registerForm.reset();
+            } catch (error) {
+                alert(`Registrasi Gagal: ${error.message}`);
+            }
+        });
+
+        // Logout
+        logoutButton.addEventListener('click', () => {
+            token = null;
+            localStorage.removeItem('token');
+            if(eventSource) eventSource.close();
+            checkLoginState();
+        });
+
+        // Warga: Fetch
+        btnFetchWarga.addEventListener('click', async () => {
+            wargaListOutput.textContent = 'Memuat...';
+            const data = await apiCall('/warga');
+            if (data) displayJSON(wargaListOutput, data);
+        });
+
+        // Warga: Create
+        wargaForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const body = {
+                nik: document.getElementById('warga-nik').value,
+                nama: document.getElementById('warga-nama').value,
+                kategori_rentan: document.getElementById('warga-kategori').value,
+                rt: "001", // Hardcode untuk tes
+                rw: "001"  // Hardcode untuk tes
+            };
+            const data = await apiCall('/warga', 'POST', body);
+            if (data) {
+                alert('Warga berhasil ditambahkan!');
+                wargaForm.reset();
+                btnFetchWarga.click();
+            }
+        });
+
+        // Bencana: Fetch
+        btnFetchBencana.addEventListener('click', async () => {
+            bencanaListOutput.textContent = 'Memuat...';
+            const data = await apiCall('/bencana/active');
+            if (data) displayJSON(bencanaListOutput, data);
+        });
+
+        // Bencana: Create
+        bencanaForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const body = {
+                jenis_bencana: document.getElementById('bencana-jenis').value,
+                level: document.getElementById('bencana-level').value,
+                deskripsi: document.getElementById('bencana-deskripsi').value,
+            };
+            const data = await apiCall('/bencana', 'POST', body);
+            if (data) {
+                alert('Bencana berhasil dilaporkan!');
+                bencanaForm.reset();
+                btnFetchBencana.click();
+            }
+        });
+
+        // SSE: Connect
+        btnConnectSSE.addEventListener('click', () => {
+            if (eventSource) {
+                eventSource.close();
+            }
+            
+            eventSource = new EventSource(`${API_URL}/broadcast/stream`);
+            sseMessages.innerHTML = '';
+            
+            eventSource.onopen = () => {
+                const li = document.createElement('li');
+                li.textContent = 'Koneksi SSE terbuka...';
+                sseMessages.appendChild(li);
+            };
+            
+            eventSource.addEventListener('connected', (e) => {
+                const li = document.createElement('li');
+                li.textContent = `[CONNECTED]: ${e.data}`;
+                sseMessages.appendChild(li);
+            });
+
+            eventSource.addEventListener('alert', (e) => {
+                const li = document.createElement('li');
+                li.className = 'text-red-400';
+                li.textContent = `[ALERT]: ${e.data}`;
+                sseMessages.appendChild(li);
+            });
+
+            eventSource.addEventListener('heartbeat', (e) => {
+                const li = document.createElement('li');
+                li.className = 'text-gray-500';
+                li.textContent = `[HEARTBEAT]...`;
+                sseMessages.appendChild(li);
+            });
+
+            eventSource.onerror = () => {
+                const li = document.createElement('li');
+                li.className = 'text-yellow-500';
+                li.textContent = 'Koneksi SSE error, mencoba menyambung ulang...';
+                sseMessages.appendChild(li);
+            };
+        });
+
+        // --- Inisialisasi ---
+        checkLoginState();
+
+    </script>
+</body>
+</html>

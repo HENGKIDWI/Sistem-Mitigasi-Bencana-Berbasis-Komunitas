@@ -107,8 +107,10 @@ func CreateWarga(c *fiber.Ctx) error {
 	userID := c.Locals("userID").(uint)
 	logActivity(userID, "Menambahkan warga rentan: "+warga.Nama)
 
-	// Update rekap wilayah
-	go updateRekapWilayah(req.RT, req.RW)
+	// -----------------------------------------------------------------
+	// DIHAPUS: go updateRekapWilayah(req.RT, req.RW)
+	// Tugas ini sekarang dilakukan oleh Sync Worker
+	// -----------------------------------------------------------------
 
 	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
 		"error":   false,
@@ -226,7 +228,6 @@ func calculatePriorityScore(kategori string) int {
 }
 
 // Helper function to update rekap wilayah (async)
-func updateRekapWilayah(rt, rw string) {
-	// This will be implemented to sync data with RekapDataWilayah
-	// For now, just a placeholder
-}
+// DIHAPUS - Fungsinya dipindahkan ke Sync Worker
+// func updateRekapWilayah(rt, rw string) {
+// }

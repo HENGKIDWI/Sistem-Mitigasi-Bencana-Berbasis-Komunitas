@@ -1,4 +1,4 @@
-// main.go
+// cmd/api-kecamatan/main.go
 package main
 
 import (
@@ -16,7 +16,7 @@ import (
 )
 
 func main() {
-	// Load environment variables
+	// Load environment variables (misal: .env.kecamatan)
 	if err := godotenv.Load(); err != nil {
 		log.Println("No .env file found")
 	}
@@ -25,12 +25,15 @@ func main() {
 	database.ConnectDB()
 	defer database.CloseDB()
 
-	// Auto migrate tables if needed
-	database.AutoMigrate()
+	// -----------------------------------------------------------------
+	// INI ADALAH PERBEDAAN UTAMA:
+	// Memanggil migrasi SPESIFIK untuk KECAMATAN
+	database.AutoMigrateKecamatan()
+	// -----------------------------------------------------------------
 
 	// Create Fiber app
 	app := fiber.New(fiber.Config{
-		AppName:      "Sistem Mitigasi Bencana v1.0",
+		AppName:      "Sistem Mitigasi Bencana (API Kecamatan) v1.0",
 		ErrorHandler: customErrorHandler,
 	})
 
@@ -38,7 +41,7 @@ func main() {
 	app.Use(recover.New())
 	app.Use(logger.New())
 	app.Use(cors.New(cors.Config{
-		AllowOrigins: "*",
+		AllowOrigins: os.Getenv("ALLOWED_ORIGINS"), // Membaca dari .env
 		AllowHeaders: "Origin, Content-Type, Accept, Authorization",
 		AllowMethods: "GET, POST, PUT, DELETE, PATCH",
 	}))
@@ -49,10 +52,10 @@ func main() {
 	// Start server
 	port := os.Getenv("PORT")
 	if port == "" {
-		port = "3000"
+		port = "3001" // Port default untuk API Kecamatan
 	}
 
-	log.Printf("🚀 Server berjalan pada port %s", port)
+	log.Printf("🚀 API Kecamatan berjalan pada port %s", port)
 	log.Fatal(app.Listen(":" + port))
 }
 
@@ -61,7 +64,7 @@ func setupRoutes(app *fiber.App) {
 	app.Get("/health", func(c *fiber.Ctx) error {
 		return c.JSON(fiber.Map{
 			"status":  "ok",
-			"message": "Sistem Mitigasi Bencana API",
+			"message": "Sistem Mitigasi Bencana API (Kecamatan)",
 		})
 	})
 
@@ -69,6 +72,7 @@ func setupRoutes(app *fiber.App) {
 	api := app.Group("/api/v1")
 
 	// Auth routes
+	api.Get("/summary", handlers.GetKecamatanSummary)
 	auth := api.Group("/auth")
 	auth.Post("/login", handlers.Login)
 	auth.Post("/register", handlers.Register)
@@ -97,22 +101,21 @@ func setupRoutes(app *fiber.App) {
 	evakuasi.Put("/log/:id", middleware.RoleMiddleware([]string{"Relawan"}), handlers.UpdateLogEvakuasi)
 	evakuasi.Get("/log/:bencana_id", handlers.GetLogEvakuasi)
 
-	// Monitoring routes (Kecamatan & Kota)
-	monitoring := api.Group("/monitoring", middleware.AuthMiddleware)
-	monitoring.Get("/kecamatan/:id", middleware.RoleMiddleware([]string{"Admin_Kecamatan", "Pemkot", "BPBD"}), handlers.GetMonitoringKecamatan)
-	monitoring.Get("/kota", middleware.RoleMiddleware([]string{"Pemkot", "BPBD"}), handlers.GetMonitoringKota)
-	monitoring.Get("/rekap/:kecamatan_id", handlers.GetRekapWilayah)
-
 	// Notifikasi & Broadcast routes
 	notif := api.Group("/notifikasi", middleware.AuthMiddleware)
-	notif.Post("/darurat", middleware.RoleMiddleware([]string{"RT", "RW", "Admin_Kecamatan", "Pemkot"}), handlers.SendDaruratNotification)
+	notif.Post("/darurat", middleware.RoleMiddleware([]string{"RT", "RW", "Admin_Kecamatan"}), handlers.SendDaruratNotification)
 
 	// SSE untuk broadcast
+	// Ini tetap di sini agar RT/Relawan bisa mendapat update real-time
 	app.Get("/api/v1/broadcast/stream", handlers.BroadcastStream)
 
-	// System logs
-	logs := api.Group("/logs", middleware.AuthMiddleware, middleware.RoleMiddleware([]string{"Admin_Kecamatan", "Pemkot"}))
+	// System logs (Log lokal untuk kecamatan ini)
+	logs := api.Group("/logs", middleware.AuthMiddleware, middleware.RoleMiddleware([]string{"Admin_Kecamatan"}))
 	logs.Get("/", handlers.GetSystemLogs)
+
+	//
+
+	// !! RUTE KOTA (monitoring/kota, monitoring/kecamatan, rekap) DIHAPUS DARI SINI !!
 }
 
 func customErrorHandler(c *fiber.Ctx, err error) error {

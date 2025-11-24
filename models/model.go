@@ -80,48 +80,48 @@ type SystemLog struct {
 }
 
 // MasterKecamatan model
-type MasterKecamatan struct {
-	ID        uint           `gorm:"primarykey" json:"id"`
-	Nama      string         `gorm:"not null" json:"nama"`
-	CreatedAt time.Time      `json:"created_at"`
-	UpdatedAt time.Time      `json:"updated_at"`
-	DeletedAt gorm.DeletedAt `gorm:"index" json:"-"`
-}
+// type MasterKecamatan struct {
+// 	ID        uint           `gorm:"primarykey" json:"id"`
+// 	Nama      string         `gorm:"not null" json:"nama"`
+// 	CreatedAt time.Time      `json:"created_at"`
+// 	UpdatedAt time.Time      `json:"updated_at"`
+// 	DeletedAt gorm.DeletedAt `gorm:"index" json:"-"`
+// }
 
 // AdminKota model
-type AdminKota struct {
-	ID        uint           `gorm:"primarykey" json:"id"`
-	Username  string         `gorm:"unique;not null" json:"username"`
-	Role      string         `gorm:"type:enum('Pemkot','BPBD');not null" json:"role"`
-	CreatedAt time.Time      `json:"created_at"`
-	UpdatedAt time.Time      `json:"updated_at"`
-	DeletedAt gorm.DeletedAt `gorm:"index" json:"-"`
-}
+// type AdminKota struct {
+// 	ID        uint           `gorm:"primarykey" json:"id"`
+// 	Username  string         `gorm:"unique;not null" json:"username"`
+// 	Role      string         `gorm:"type:enum('Pemkot','BPBD');not null" json:"role"`
+// 	CreatedAt time.Time      `json:"created_at"`
+// 	UpdatedAt time.Time      `json:"updated_at"`
+// 	DeletedAt gorm.DeletedAt `gorm:"index" json:"-"`
+// }
 
 // RekapDataWilayah model
-type RekapDataWilayah struct {
-	ID              uint            `gorm:"primarykey" json:"id"`
-	KecamatanID     uint            `gorm:"not null" json:"kecamatan_id"`
-	Kecamatan       MasterKecamatan `gorm:"foreignKey:KecamatanID" json:"kecamatan,omitempty"`
-	TotalWarga      int             `gorm:"default:0" json:"total_warga"`
-	TotalKerentanan int             `gorm:"default:0" json:"total_kerentanan"`
-	LastSync        *time.Time      `json:"last_sync"`
-	CreatedAt       time.Time       `json:"created_at"`
-	UpdatedAt       time.Time       `json:"updated_at"`
-}
+// type RekapDataWilayah struct {
+// 	ID              uint            `gorm:"primarykey" json:"id"`
+// 	KecamatanID     uint            `gorm:"not null" json:"kecamatan_id"`
+// 	Kecamatan       MasterKecamatan `gorm:"foreignKey:KecamatanID" json:"kecamatan,omitempty"`
+// 	TotalWarga      int             `gorm:"default:0" json:"total_warga"`
+// 	TotalKerentanan int             `gorm:"default:0" json:"total_kerentanan"`
+// 	LastSync        *time.Time      `json:"last_sync"`
+// 	CreatedAt       time.Time       `json:"created_at"`
+// 	UpdatedAt       time.Time       `json:"updated_at"`
+// }
 
 // MonitoringBencanaKota model
-type MonitoringBencanaKota struct {
-	ID           uint            `gorm:"primarykey" json:"id"`
-	KecamatanID  uint            `gorm:"not null" json:"kecamatan_id"`
-	Kecamatan    MasterKecamatan `gorm:"foreignKey:KecamatanID" json:"kecamatan,omitempty"`
-	JenisBencana string          `gorm:"not null" json:"jenis_bencana"`
-	StatusLevel  string          `gorm:"type:enum('Waspada','Siaga','Awas');not null" json:"status_level"`
-	WaktuLaporan time.Time       `gorm:"not null" json:"waktu_laporan"`
-	TotalBencana int             `gorm:"default:0" json:"total_bencana"`
-	CreatedAt    time.Time       `json:"created_at"`
-	UpdatedAt    time.Time       `json:"updated_at"`
-}
+// type MonitoringBencanaKota struct {
+// 	ID           uint            `gorm:"primarykey" json:"id"`
+// 	KecamatanID  uint            `gorm:"not null" json:"kecamatan_id"`
+// 	Kecamatan    MasterKecamatan `gorm:"foreignKey:KecamatanID" json:"kecamatan,omitempty"`
+// 	JenisBencana string          `gorm:"not null" json:"jenis_bencana"`
+// 	StatusLevel  string          `gorm:"type:enum('Waspada','Siaga','Awas');not null" json:"status_level"`
+// 	WaktuLaporan time.Time       `gorm:"not null" json:"waktu_laporan"`
+// 	TotalBencana int             `gorm:"default:0" json:"total_bencana"`
+// 	CreatedAt    time.Time       `json:"created_at"`
+// 	UpdatedAt    time.Time       `json:"updated_at"`
+// }
 
 // DTO for Login Request
 type LoginRequest struct {
@@ -169,4 +169,48 @@ type BroadcastRequest struct {
 	BencanaID uint   `json:"bencana_id" validate:"required"`
 	Message   string `json:"message" validate:"required"`
 	Level     string `json:"level" validate:"required"`
+}
+
+// Logistik - Menyimpan data stok barang di gudang kecamatan
+type Logistik struct {
+	ID        uint           `gorm:"primarykey" json:"id"`
+	Nama      string         `gorm:"not null" json:"nama"`
+	Satuan    string         `gorm:"not null" json:"satuan"`
+	Kategori  string         `gorm:"type:enum('Makanan','Obat','Pakaian','Peralatan','Lainnya');not null" json:"kategori"`
+	Stok      int            `gorm:"not null;default:0" json:"stok"`
+	Lokasi    string         `json:"lokasi"`
+	CreatedAt time.Time      `json:"created_at"`
+	UpdatedAt time.Time      `json:"updated_at"`
+	DeletedAt gorm.DeletedAt `gorm:"index" json:"-"`
+}
+
+// LogistikTransaksi - Mencatat riwayat barang masuk/keluar
+type LogistikTransaksi struct {
+	ID         uint      `gorm:"primarykey" json:"id"`
+	LogistikID uint      `gorm:"not null" json:"logistik_id"`
+	Logistik   Logistik  `gorm:"foreignKey:LogistikID" json:"logistik,omitempty"`
+	UserID     uint      `gorm:"not null" json:"user_id"`
+	User       User      `gorm:"foreignKey:UserID" json:"user,omitempty"`
+	Jenis      string    `gorm:"type:enum('Masuk','Keluar');not null" json:"jenis"`
+	Jumlah     int       `gorm:"not null" json:"jumlah"`
+	Keterangan string    `gorm:"type:text" json:"keterangan"`
+	BencanaID  *uint     `json:"bencana_id"`
+	CreatedAt  time.Time `json:"created_at"`
+}
+
+// DTOs untuk Logistik
+type CreateLogistikRequest struct {
+	Nama     string `json:"nama" validate:"required"`
+	Satuan   string `json:"satuan" validate:"required"`
+	Kategori string `json:"kategori" validate:"required"`
+	Lokasi   string `json:"lokasi"`
+	StokAwal int    `json:"stok_awal"`
+}
+
+type TransaksiLogistikRequest struct {
+	LogistikID uint   `json:"logistik_id" validate:"required"`
+	Jenis      string `json:"jenis" validate:"required"`
+	Jumlah     int    `json:"jumlah" validate:"required"`
+	Keterangan string `json:"keterangan"`
+	BencanaID  uint   `json:"bencana_id"`
 }

@@ -97,22 +97,12 @@ func setupRoutes(app *fiber.App) {
 	evakuasi.Put("/log/:id", middleware.RoleMiddleware([]string{"Relawan"}), handlers.UpdateLogEvakuasi)
 	evakuasi.Get("/log/:bencana_id", handlers.GetLogEvakuasi)
 
-	// Monitoring routes (Kecamatan & Kota)
-	monitoring := api.Group("/monitoring", middleware.AuthMiddleware)
-	monitoring.Get("/kecamatan/:id", middleware.RoleMiddleware([]string{"Admin_Kecamatan", "Pemkot", "BPBD"}), handlers.GetMonitoringKecamatan)
-	monitoring.Get("/kota", middleware.RoleMiddleware([]string{"Pemkot", "BPBD"}), handlers.GetMonitoringKota)
-	monitoring.Get("/rekap/:kecamatan_id", handlers.GetRekapWilayah)
-
-	// Notifikasi & Broadcast routes
-	notif := api.Group("/notifikasi", middleware.AuthMiddleware)
-	notif.Post("/darurat", middleware.RoleMiddleware([]string{"RT", "RW", "Admin_Kecamatan", "Pemkot"}), handlers.SendDaruratNotification)
-
-	// SSE untuk broadcast
-	app.Get("/api/v1/broadcast/stream", handlers.BroadcastStream)
-
-	// System logs
-	logs := api.Group("/logs", middleware.AuthMiddleware, middleware.RoleMiddleware([]string{"Admin_Kecamatan", "Pemkot"}))
-	logs.Get("/", handlers.GetSystemLogs)
+	// Logistik routes
+	logistik := api.Group("/logistik", middleware.AuthMiddleware)
+	logistik.Get("/", handlers.GetAllLogistik)
+	logistik.Post("/", middleware.RoleMiddleware([]string{"Admin_Kecamatan"}), handlers.CreateLogistik)
+	logistik.Post("/transaksi", middleware.RoleMiddleware([]string{"Admin_Kecamatan", "Relawan"}), handlers.HandleTransaksiLogistik)
+	logistik.Get("/:id/riwayat", handlers.GetRiwayatLogistik)
 }
 
 func customErrorHandler(c *fiber.Ctx, err error) error {

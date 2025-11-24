@@ -69,10 +69,8 @@ func AutoMigrate() {
 		&models.KejadianBencana{},
 		&models.LogEvakuasi{},
 		&models.SystemLog{},
-		&models.MasterKecamatan{},
-		&models.AdminKota{},
-		&models.RekapDataWilayah{},
-		&models.MonitoringBencanaKota{},
+		&models.Logistik{},
+		&models.LogistikTransaksi{},
 	)
 
 	if err != nil {

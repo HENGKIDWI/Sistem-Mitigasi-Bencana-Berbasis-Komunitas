@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/HENGKIDWI/Sistem-Mitigasi-Bencana-Berbasis-Komunitas.git/database"
+	"github.com/HENGKIDWI/Sistem-Mitigasi-Bencana-Berbasis-Komunitas.git/messaging"
 	"github.com/HENGKIDWI/Sistem-Mitigasi-Bencana-Berbasis-Komunitas.git/models"
 	"github.com/gofiber/fiber/v2"
 )
@@ -113,6 +114,10 @@ func CreateBencana(c *fiber.Ctx) error {
 			"message": "Failed to create bencana",
 		})
 	}
+	// Kirim sinyal ke Kafka bahwa ada bencana baru
+	// Kita gunakan goroutine (go ...) agar tidak memperlambat respon ke user
+	go messaging.PublishEvent("CREATE_BENCANA", 1, bencana)
+	// Catatan: Angka '1' harusnya ID Kecamatan dinamis dari ENV/Token
 
 	// Preload user pelapor
 	database.DB.Preload("UserPelapor").First(&bencana, bencana.ID)

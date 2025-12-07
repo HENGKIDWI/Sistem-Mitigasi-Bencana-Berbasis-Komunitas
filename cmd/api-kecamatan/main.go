@@ -7,6 +7,7 @@ import (
 
 	"github.com/HENGKIDWI/Sistem-Mitigasi-Bencana-Berbasis-Komunitas.git/database"
 	"github.com/HENGKIDWI/Sistem-Mitigasi-Bencana-Berbasis-Komunitas.git/handlers"
+	"github.com/HENGKIDWI/Sistem-Mitigasi-Bencana-Berbasis-Komunitas.git/messaging"
 	"github.com/HENGKIDWI/Sistem-Mitigasi-Bencana-Berbasis-Komunitas.git/middleware"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
@@ -114,6 +115,8 @@ func setupRoutes(app *fiber.App) {
 	logs.Get("/", handlers.GetSystemLogs)
 
 	//
+	// Menghubungkan ke localhost:9092 (Container Docker Anda)
+	messaging.InitKafkaProducer("localhost:9092", "sync-events")
 
 	// !! RUTE KOTA (monitoring/kota, monitoring/kecamatan, rekap) DIHAPUS DARI SINI !!
 }

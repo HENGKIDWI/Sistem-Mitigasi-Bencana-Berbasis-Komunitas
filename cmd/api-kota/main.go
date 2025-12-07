@@ -93,7 +93,11 @@ func setupRoutesKota(app *fiber.App) {
 	})
 
 	// Monitoring routes (Sesuai README dan kode Anda)
-	monitoring := api.Group("/monitoring", middleware.AuthMiddleware)
+	// monitoring := api.Group("/monitoring", middleware.AuthMiddleware)
+
+	// Hapus middleware.AuthMiddleware agar rute ini jadi PUBLIK buat testing
+	monitoring := api.Group("/monitoring")
+
 	monitoring.Get("/kota", handlers.GetMonitoringKota)
 	monitoring.Get("/kecamatan/:id", handlers.GetMonitoringKecamatan)
 

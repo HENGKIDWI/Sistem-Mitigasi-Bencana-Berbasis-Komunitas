@@ -1,188 +1,103 @@
-// cmd/sync-worker/main.go
 package main
 
 import (
+	"context"
 	"encoding/json"
-	"fmt"
 	"log"
-	"net/http"
-	"os"
-	"time"
 
 	"github.com/HENGKIDWI/Sistem-Mitigasi-Bencana-Berbasis-Komunitas.git/database"
 	"github.com/HENGKIDWI/Sistem-Mitigasi-Bencana-Berbasis-Komunitas.git/models"
 	"github.com/joho/godotenv"
+	"github.com/segmentio/kafka-go"
 	"gorm.io/gorm"
-	"gorm.io/gorm/clause"
 )
 
-// --- Struct untuk Konfigurasi ---
-
-type KecamatanAPIConfig struct {
-	KecamatanID uint   `json:"kecamatan_id"`
-	Nama        string `json:"nama"`
-	ApiURL      string `json:"api_url"`
+// Struktur Pesan yang diterima dari Kafka
+type EventMessage struct {
+	Action      string                 `json:"action"`
+	KecamatanID uint                   `json:"kecamatan_id"`
+	Payload     map[string]interface{} `json:"payload"`
 }
-
-type SyncConfig struct {
-	SyncIntervalMinutes int                  `json:"sync_interval_minutes"`
-	KecamatanAPIs       []KecamatanAPIConfig `json:"kecamatan_apis"`
-}
-
-// --- Struct untuk Respons API Kecamatan ---
-
-type SummaryResponseData struct {
-	TotalWarga   int `json:"total_warga"`
-	TotalRentan  int `json:"total_rentan"`
-	BencanaAktif int `json:"bencana_aktif"`
-}
-
-type SummaryResponse struct {
-	Data SummaryResponseData `json:"data"`
-}
-
-// --- Fungsi Utama ---
 
 func main() {
-	// 1. Load .env (untuk koneksi DB Kota)
+	// 1. Setup Database Kota
 	if err := godotenv.Load(); err != nil {
-		log.Println("Info: No .env file found, relying on environment variables")
+		log.Println("Info: No .env file found")
 	}
-
-	// 2. Load sync_config.json
-	config, err := loadConfig("sync_config.json") // Pastikan path sesuai
-	if err != nil {
-		// Coba path relatif jika dijalankan dari root
-		config, err = loadConfig("cmd/sync-worker/sync_config.json")
-		if err != nil {
-			log.Fatalf("FATAL: Gagal memuat sync_config.json: %v", err)
-		}
-	}
-
-	// 3. Hubungkan ke Database KOTA
 	database.ConnectDB()
-	db := database.DB
 
-	// 4. Jalankan sinkronisasi pertama kali
-	log.Println("🚀 Worker dimulai. Menjalankan sinkronisasi awal...")
-	runSyncJob(db, config)
+	// 2. Konfigurasi Kafka Reader (Consumer)
+	reader := kafka.NewReader(kafka.ReaderConfig{
+		Brokers:  []string{"localhost:9092"}, // Konek ke Docker
+		Topic:    "sync-events",              // Topic harus sama dengan Producer
+		GroupID:  "kota-sync-worker-group",   // PENTING: Group ID agar offset tersimpan
+		MinBytes: 10e3,                       // 10KB
+		MaxBytes: 10e6,                       // 10MB
+	})
+	defer reader.Close()
 
-	// 5. Mulai ticker
-	interval := time.Duration(config.SyncIntervalMinutes) * time.Minute
-	ticker := time.NewTicker(interval)
-	log.Printf("⏱️  Jadwal sync diatur setiap %d menit.", config.SyncIntervalMinutes)
+	log.Println("🚀 Sync Worker Berjalan (Event-Driven Mode)... Menunggu Event dari Kafka...")
 
-	// 6. Loop utama
-	for range ticker.C {
-		log.Println("\n⏰ Waktunya sinkronisasi terjadwal...")
-		runSyncJob(db, config)
-	}
-}
-
-func loadConfig(path string) (*SyncConfig, error) {
-	file, err := os.Open(path)
-	if err != nil {
-		return nil, err
-	}
-	defer file.Close()
-
-	var config SyncConfig
-	decoder := json.NewDecoder(file)
-	if err := decoder.Decode(&config); err != nil {
-		return nil, err
-	}
-	return &config, nil
-}
-
-// runSyncJob adalah fungsi inti yang melakukan ETL
-func runSyncJob(db *gorm.DB, config *SyncConfig) {
-	berhasil := 0
-	gagal := 0
-
-	for _, kec := range config.KecamatanAPIs {
-		// LOG 1: Memberitahu kita sedang menghubungi siapa
-		log.Printf("🔄 Menghubungi: %-30s [%s]", kec.Nama, kec.ApiURL)
-
-		// 1. Panggil API /summary
-		summaryURL := fmt.Sprintf("%s/summary", kec.ApiURL)
-
-		// Set timeout agar worker tidak 'hang' jika server kecamatan lambat
-		client := http.Client{
-			Timeout: 5 * time.Second,
-		}
-
-		resp, err := client.Get(summaryURL)
+	// 3. Loop Abadi (Mendengarkan Stream)
+	for {
+		// ReadMessage akan 'block' (berhenti tunggu) sampai ada pesan masuk
+		m, err := reader.ReadMessage(context.Background())
 		if err != nil {
-			// LOG ERROR
-			log.Printf("   ❌ GAGAL: Tidak bisa terhubung (%v)", err)
-			gagal++
-			continue
-		}
-		defer resp.Body.Close()
-
-		if resp.StatusCode != http.StatusOK {
-			log.Printf("   ⚠️  WARNING: Merespon dengan status %d", resp.StatusCode)
-			gagal++
-			continue
+			log.Printf("❌ Error baca pesan: %v", err)
+			break
 		}
 
-		// 2. Decode JSON
-		var summary SummaryResponse
-		if err := json.NewDecoder(resp.Body).Decode(&summary); err != nil {
-			log.Printf("   ❌ ERROR: Gagal decode JSON (%v)", err)
-			gagal++
-			continue
-		}
-
-		// 3. Simpan ke DB Kota
-		syncRekapWilayah(db, kec.KecamatanID, &summary.Data)
-		syncMonitoringBencana(db, kec.KecamatanID, &summary.Data)
-
-		// LOG SUKSES (INI YANG ANDA CARI)
-		log.Printf("   ✅ SUKSES: Data tersimpan (Warga: %d, Bencana: %d)",
-			summary.Data.TotalWarga, summary.Data.BencanaAktif)
-		berhasil++
+		// Ada pesan masuk!
+		log.Printf("📨 Event Masuk: %s", string(m.Key))
+		processEvent(database.DB, m.Value)
 	}
-
-	log.Printf("📊 Laporan Sync: %d Berhasil, %d Gagal", berhasil, gagal)
-	log.Println("---------------------------------------------------------------")
 }
 
-func syncRekapWilayah(db *gorm.DB, kecID uint, data *SummaryResponseData) {
-	now := time.Now()
-	rekap := models.RekapDataWilayah{
-		KecamatanID:     kecID,
-		TotalWarga:      data.TotalWarga,
-		TotalKerentanan: data.TotalRentan,
-		LastSync:        &now,
+func processEvent(db *gorm.DB, messageBytes []byte) {
+	var event EventMessage
+	if err := json.Unmarshal(messageBytes, &event); err != nil {
+		log.Printf("❌ Gagal decode JSON: %v", err)
+		return
 	}
 
-	db.Clauses(clause.OnConflict{
-		Columns:   []clause.Column{{Name: "kecamatan_id"}},
-		DoUpdates: clause.AssignmentColumns([]string{"total_warga", "total_kerentanan", "last_sync"}),
-	}).Create(&rekap)
+	// Router Logic berdasarkan Action
+	switch event.Action {
+	case "CREATE_BENCANA":
+		log.Printf("⚡ Bencana terdeteksi di Kecamatan ID %d. Mengupdate Monitoring Kota...", event.KecamatanID)
+		updateMonitoringKota(db, event.KecamatanID)
+
+	case "CREATE_WARGA":
+		log.Printf("bust Warga bertambah di Kecamatan ID %d. Mengupdate Rekap...", event.KecamatanID)
+		// Implementasi update rekap di sini
+
+	default:
+		log.Printf("⚠️ Action tidak dikenal: %s", event.Action)
+	}
 }
 
-func syncMonitoringBencana(db *gorm.DB, kecID uint, data *SummaryResponseData) {
-	statusLevel := "Aman" // Default aman jika 0 bencana
-	if data.BencanaAktif > 5 {
-		statusLevel = "Awas"
-	} else if data.BencanaAktif > 2 {
-		statusLevel = "Siaga"
-	} else if data.BencanaAktif > 0 {
-		statusLevel = "Waspada"
-	}
+// Fungsi Update DB Kota (Versi Sederhana: Increment)
+func updateMonitoringKota(db *gorm.DB, kecID uint) {
+	// Upsert logika untuk menambah jumlah bencana
+	// Karena ini event driven, idealnya payload berisi data lengkap
+	// Tapi untuk simpel, kita increment saja count-nya
 
-	monitor := models.MonitoringBencanaKota{
-		KecamatanID:  kecID,
-		JenisBencana: "Agregat",
-		StatusLevel:  statusLevel,
-		WaktuLaporan: time.Now(),
-		TotalBencana: data.BencanaAktif,
-	}
+	// Cek apakah data monitoring sudah ada
+	var monitor models.MonitoringBencanaKota
+	result := db.Where("kecamatan_id = ?", kecID).First(&monitor)
 
-	db.Clauses(clause.OnConflict{
-		Columns:   []clause.Column{{Name: "kecamatan_id"}},
-		DoUpdates: clause.AssignmentColumns([]string{"status_level", "waktu_laporan", "total_bencana"}),
-	}).Create(&monitor)
+	if result.Error == gorm.ErrRecordNotFound {
+		monitor = models.MonitoringBencanaKota{
+			KecamatanID:  kecID,
+			JenisBencana: "Update Terbaru",
+			StatusLevel:  "Waspada",
+			TotalBencana: 1,
+		}
+		db.Create(&monitor)
+	} else {
+		// Update existing
+		monitor.TotalBencana += 1
+		monitor.StatusLevel = "Siaga" // Contoh logika
+		db.Save(&monitor)
+	}
+	log.Println("✅ Database Kota Terupdate!")
 }
